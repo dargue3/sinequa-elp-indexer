@@ -29,6 +29,24 @@ namespace GetPageData
             }
         }
 
+        public async Task FetchWorkplacePages(List<WorkplacePage> pages)
+        {
+            foreach (var page in pages)
+            {
+                try
+                {
+                    var response = await NetworkUtility.MakeContentfulRequest<ApiResponse>(Queries.GetPageDataQuery, new { id = page.Id });
+                    var p = response.Data.InternalPage;
+                    var urlPath = $"/workplace/{page.Category.Slug}/{p.Slug}?city={page.City.Slug}&bldg={page.Building.Slug}";
+                    IndexContent(response, urlPath, new Slugs("workplace", page.Category.Slug, page.City.Slug, page.Building.Slug));
+                }
+                catch (Exception ex)
+                {
+                    Console.Error.WriteLine(ex);
+                }
+            }
+        }
+
         public void IndexContent(ApiResponse pageData, string urlPath, Slugs slugs)
         {
             var p = pageData.Data.InternalPage;

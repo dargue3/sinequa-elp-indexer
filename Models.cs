@@ -70,11 +70,11 @@ namespace Models {
 
     public class WorkplacePage
     {
-        public string Id { get; }
-        public Category Category { get; }
-        public City City { get; }
-        public Region Region { get; }
-        public Building Building { get; }
+        public string Id { get; set; }
+        public Category Category { get; set; }
+        public City City { get; set; }
+        public Region Region { get; set; }
+        public Building Building { get; set; }
 
         public WorkplacePage(string id, Category category, Region region, City city, Building building)
         {

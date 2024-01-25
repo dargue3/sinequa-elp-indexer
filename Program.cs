@@ -12,19 +12,28 @@ namespace SinequaElpIndexer
             try
             {
                 var GetPagesResponse = new GetPages.GetPages();
+                var GetWorkplacesResponse = new GetWorkplaces.GetWorkplaces();
 
-                await GetPagesResponse.FetchAsync();
+                var PagesTask = GetPagesResponse.FetchAsync();
+                var WorkplacesPagesTask = GetWorkplacesResponse.FetchAllWorkplaces();
 
-                var GetPageResponse = new GetPageData.GetPageDataForIndexing();
+                await Task.WhenAll(PagesTask, WorkplacesPagesTask);
 
-                await GetPageResponse.FetchParentCategoryPages(GetPagesResponse.Pages);
+                Console.WriteLine($"Pages From Parents: {GetPagesResponse.Pages.Count}\n");
+                Console.WriteLine($"Pages From Workplaces: {GetWorkplacesResponse.Pages.Count}\n");
 
-                
+                var PageGetter = new GetPageData.GetPageDataForIndexing();
+
+                await PageGetter.FetchParentCategoryPages(GetPagesResponse.Pages);
+                await PageGetter.FetchWorkplacePages(GetWorkplacesResponse.Pages);
+
+                Console.WriteLine($"Blocks of Content To Index: {PageGetter.ContentToIndex.Count}\n");
 
                 // Print out the response
-                var json = JsonConvert.SerializeObject(GetPageResponse.ContentToIndex, Formatting.Indented);
+                var json = JsonConvert.SerializeObject(PageGetter.ContentToIndex, Formatting.Indented);
 
                 File.WriteAllText("results.json", json);
+                Console.WriteLine("Results written to results.json\n");
             }
             catch (Exception ex)
             {
