@@ -1,0 +1,6 @@
+run.sh
+results.json
+obj
+.DS_Store
+bin
+*.sln
