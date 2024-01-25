@@ -6,7 +6,7 @@ using Newtonsoft.Json;
 
 public static class NetworkUtility
 {
-    private static readonly string AuthToken = $"Bearer {Environment.GetEnvironmentVariable("CONTENTFUL_ACCESS_TOKEN")}"
+    private static readonly string AuthToken = $"Bearer {Environment.GetEnvironmentVariable("CONTENTFUL_ACCESS_TOKEN")}";
     private static readonly string SpaceId = $"{Environment.GetEnvironmentVariable("SPACE_ID")}";
     private static readonly string BaseUrl = $"https://graphql.contentful.com/content/v1/spaces/{SpaceId}";
     private static readonly HttpClient client = new HttpClient();

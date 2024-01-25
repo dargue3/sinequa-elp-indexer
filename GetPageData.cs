@@ -32,7 +32,7 @@ namespace GetPageData
         public void IndexContent(ApiResponse pageData, string urlPath, Slugs slugs)
         {
             var p = pageData.Data.InternalPage;
-            var title = p.CmsTitle;
+            var title = p.PageName;
 
             // Process global content
             foreach (var content in p.SectionContentCollection.Items.Where(content => content != null))

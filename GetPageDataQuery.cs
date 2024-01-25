@@ -14,7 +14,7 @@ namespace GetPageData
                   id
                 }
                 slug
-                cmsTitle
+                pageName
                 pageIntroDescription
                 sectionContentCollection(limit: 20) {
                   total
@@ -212,8 +212,8 @@ namespace GetPageData
         [JsonProperty("slug")]
         public string Slug { get; set; }
 
-        [JsonProperty("cmsTitle")]
-        public string CmsTitle { get; set; }
+        [JsonProperty("pageName")]
+        public string PageName { get; set; }
 
         [JsonProperty("pageIntroDescription")]
         public string PageIntroDescription { get; set; }
