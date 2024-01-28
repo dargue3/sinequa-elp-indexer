@@ -22,12 +22,12 @@ public static class NetworkUtility
 
         var response = await client.SendAsync(request);
 
+        var responseBody = await response.Content.ReadAsStringAsync();
+
         if (!response.IsSuccessStatusCode)
         {
             throw new HttpRequestException($"Request failed with status code {response.StatusCode}: {responseBody}");
         }
-
-        var responseBody = await response.Content.ReadAsStringAsync();
 
         // Artificial delay to miss rate limit.
         await Task.Delay(85);

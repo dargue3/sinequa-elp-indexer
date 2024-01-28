@@ -36,6 +36,7 @@ namespace GetPageData
                     ... on LocationBasedContent {
                       location {
                         slug
+                        type
                         locationName
                       }
                       locationSpecificContentCollection(limit: 30) {
@@ -187,6 +188,8 @@ namespace GetPageData
     {
         [JsonProperty("slug")]
         public string Slug { get; set; }
+        [JsonProperty("type")]
+        public string Type { get; set; }
         [JsonProperty("locationName")]
         public string Name { get; set; }
     }

@@ -36,9 +36,12 @@ namespace Models {
     {
         public string Slug { get; }
 
-        public City(string slug)
+        public string Name { get; }
+
+        public City(string slug, string name)
         {
             Slug = slug;
+            Name = name;
         }
     }
 
@@ -88,25 +91,6 @@ namespace Models {
         }
     }
 
-    public class Slugs {
-        [JsonProperty("parent")]
-        public string Parent { get; set; }
-        [JsonProperty("category")]
-        public string Category { get; set; }
-        [JsonProperty("city")]
-        public string City { get; set; }
-        [JsonProperty("building")]
-        public string Building { get; set; }
-
-        public Slugs(string parent, string category, string city, string building)
-        {
-            Parent = parent;
-            Category = category;
-            City = city;
-            Building = building;
-        }
-    }
-
     public class ContentToIndex
     {
         [JsonProperty("data")]
@@ -123,8 +107,6 @@ namespace Models {
         public string PublishedAt { get; set; }
         [JsonProperty("pageTitle")]
         public string PageTitle { get; set; }
-        [JsonProperty("locationSlug")]
-        public string LocationSlug { get; set; }
         [JsonProperty("locationName")]
         public string LocationName { get; set; }
     }

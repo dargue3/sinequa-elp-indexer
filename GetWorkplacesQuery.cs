@@ -18,6 +18,7 @@ namespace GetWorkplaces
                         id
                       }
                       slug
+                      title
                       buildingsCollection(limit: 5) {
                         total
                         buildings: items {
@@ -116,6 +117,9 @@ namespace GetWorkplaces
     {
         [JsonProperty("slug")]
         public string Slug { get; set; }
+
+        [JsonProperty("title")]
+        public string Name { get; set; }
 
         [JsonProperty("sys")]
         public Sys Sys { get; set; }

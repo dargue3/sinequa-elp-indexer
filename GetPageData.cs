@@ -48,7 +48,7 @@ namespace GetPageData
             }
             catch (Exception ex)
             {
-                Sinequa.Common.Sys.LogError(ex); 
+                Console.Error.WriteLine(ex);
             }
             return PageContentList;
         }
@@ -59,68 +59,81 @@ namespace GetPageData
             {
                 try
                 {
-                    (await PaginateThroughContent(page.Id)).ForEach(pageData =>
+                    (await PaginateThroughContent(page.Id)).ForEach(PageData =>
                     {
-                        var urlPath = $"/{page.Parent.Slug}/{page.Category.Slug}/{page.Slug}";
-                        IndexContent(pageData, urlPath);
+                        var Url = $"/{page.Parent.Slug}/{page.Category.Slug}/{page.Slug}";
+                        IndexContent(PageData, Url, null);
                     });
                     Console.WriteLine($"Indexed {ContentToIndex.Count} items");
                 }
                 catch (Exception ex)
                 {
-                    Sinequa.Common.Sys.LogError(ex); 
+                    Console.Error.WriteLine(ex);
                 }
             }
         }
 
         public async Task FetchWorkplacePages(List<WorkplacePage> pages)
         {
-            foreach (var page in pages)
+            foreach (var Page in pages)
             {
                 try
                 {
-                    (await PaginateThroughContent(page.Id)).ForEach(pageData =>
+                    (await PaginateThroughContent(Page.Id)).ForEach(PageData =>
                     {
-                        var urlPath = $"/workplace/{page.Category.Slug}/{page.Slug}?city={page.City.Slug}&bldg={page.Building.Slug}";
-                        IndexContent(pageData, urlPath);
+                        var Url = $"/workplace/{Page.Category.Slug}/{Page.Slug}";
+                        // Workplace pages are unique in that their location comes from the parents.
+                        // They don't themselves have any "location based data" because its assumed
+                        // to be scoped by the city/building that we queried in order to find the page.
+                        Location BuildingLocation = new Location
+                        {
+                            Type = "building",
+                            Name = Page.City.Name,
+                            Slug = Page.Building.Slug,
+                        };
+                        IndexContent(PageData, Url, BuildingLocation);
                     });
                     Console.WriteLine($"Indexed {ContentToIndex.Count} items");
                 }
                 catch (Exception ex)
                 {
-                    Sinequa.Common.Sys.LogError(ex); 
+                    Console.Error.WriteLine(ex);
                 }
             }
         }
 
-        public void IndexContent(InternalPage p, string urlPath)
+        public void IndexContent(InternalPage p, string Url, Location Location)
         {
-            toContent(p, p.SectionContentCollection, urlPath, null, null);
+            toContent(p, p.SectionContentCollection, Url, Location);
 
             p.LocationBasedContentCollection.Items.Where(l => l != null && l?.LocationSpecificContentCollection != null)
                 .ToList()
                 .ForEach(LocalContent =>
                 {
-                    var LocationName = LocalContent.Location != null ? LocalContent.Location.Name : null;
-                    var LocationSlug = LocalContent.Location != null ? LocalContent.Location.Slug : null;
-                    toContent(p, LocalContent.LocationSpecificContentCollection, urlPath, LocationName, LocationSlug);
+                    toContent(p, LocalContent.LocationSpecificContentCollection, Url, LocalContent.Location);
                 });
         }
 
-        public void toContent(InternalPage p, ContentItemList List, string urlPath, string LocationName, string LocationSlug)
+        public void toContent(InternalPage p, ContentItemList List, string Url, Location Location)
         {
             if (p?.Sys?.Id == null) return;
+
+            var LocationName = "";
+
+            if (Location != null) {
+                Url = Url + $"?slug={Location.Slug}&type={Location.Type}"; 
+                LocationName = Location.Name;
+            }
 
             foreach (var content in List.Items.Where(content => content != null))
             {
                 var NewContent = new ContentToIndex
                 {
-                    UrlPath = urlPath,
+                    UrlPath = Url,
                     PageSlug = p.Slug,
                     PageId = p.Sys.Id,
                     PageTitle = p.PageName,
                     LocationName = LocationName,
-                    LocationSlug = LocationSlug,
                     PublishedAt = content.Sys.PublishedAt
                 };
 

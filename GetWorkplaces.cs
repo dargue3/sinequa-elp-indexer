@@ -1,3 +1,8 @@
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
+using System;
+
 namespace GetWorkplaces
 {
   public class GetWorkplaces
@@ -36,7 +41,7 @@ namespace GetWorkplaces
                   foreach (var c in r.CitiesCollection.Cities)
                   {
                       if (c == null) continue;
-                      var city = new Models.City(c.Slug);
+                      var city = new Models.City(c.Slug, c.Name);
                       Cities.Add(city);
 
                       foreach (var b in c.BuildingsCollection.Buildings)
@@ -69,7 +74,7 @@ namespace GetWorkplaces
           }
           catch (Exception ex)
           {
-              Console.Error.WriteLine(ex);
+            Console.Error.WriteLine(ex);
           }
           return true;
       }
