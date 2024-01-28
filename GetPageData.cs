@@ -7,9 +7,51 @@ using Models;
 
 namespace GetPageData
 {
+
     public class GetPageDataForIndexing
     {
+        public readonly int PAGE_SIZE = 5;
+
         public List<ContentToIndex> ContentToIndex { get; set; } = new List<ContentToIndex>();
+
+        public async Task<InternalPage> FetchPage(string id, int skip)
+        {
+            var Response = await NetworkUtility.MakeContentfulRequest<ApiResponse>(
+                Queries.GetPageDataQuery,
+                new { id = id, skip = skip }
+            );
+            return Response.Data.InternalPage;
+        }
+
+        public async Task<List<InternalPage>> PaginateThroughContent(string pageId)
+        {
+            // We're going to accumulate multiple InternalPage objects of the same page.
+            // However that's fine since we index the _content_ of the page, not the page itself.
+            var PageContentList = new List<InternalPage>();
+            try
+            {
+                // The skip parameter is used to paginate through the content
+                // The limit in GetPageDataQuery is set to 5, so we'll jump in pages of 5.
+                int skip = 0;
+                while (skip < 100)
+                {
+                    var PageData = await FetchPage(pageId, skip);
+
+                    PageContentList.Add(PageData);
+
+                    int remainingGlobalContent = PageData.SectionContentCollection.Items.Count;
+                    int remainingLocalContent = PageData.LocationBasedContentCollection.Items.Count;
+                    if (remainingGlobalContent < PAGE_SIZE && remainingLocalContent < PAGE_SIZE) break;
+
+                    skip += PAGE_SIZE;
+                }
+            }
+            catch (Exception ex)
+            {
+                Sinequa.Common.Sys.LogError(ex); 
+            }
+            return PageContentList;
+        }
 
         public async Task FetchParentCategoryPages(List<Page> pages)
         {
@@ -17,14 +59,16 @@ namespace GetPageData
             {
                 try
                 {
-                    var response = await NetworkUtility.MakeContentfulRequest<ApiResponse>(Queries.GetPageDataQuery, new { id = page.Id });
-                    var p = response.Data.InternalPage;
-                    var urlPath = $"/{page.Parent.Slug}/{page.Category.Slug}/{p.Slug}";
-                    IndexContent(response, urlPath, new Slugs(page.Parent.Slug, page.Category.Slug, null, null));
+                    (await PaginateThroughContent(page.Id)).ForEach(pageData =>
+                    {
+                        var urlPath = $"/{page.Parent.Slug}/{page.Category.Slug}/{page.Slug}";
+                        IndexContent(pageData, urlPath);
+                    });
+                    Console.WriteLine($"Indexed {ContentToIndex.Count} items");
                 }
                 catch (Exception ex)
                 {
-                    Console.Error.WriteLine(ex);
+                    Sinequa.Common.Sys.LogError(ex); 
                 }
             }
         }
@@ -35,129 +79,82 @@ namespace GetPageData
             {
                 try
                 {
-                    var response = await NetworkUtility.MakeContentfulRequest<ApiResponse>(Queries.GetPageDataQuery, new { id = page.Id });
-                    var p = response.Data.InternalPage;
-                    var urlPath = $"/workplace/{page.Category.Slug}/{p.Slug}?city={page.City.Slug}&bldg={page.Building.Slug}";
-                    IndexContent(response, urlPath, new Slugs("workplace", page.Category.Slug, page.City.Slug, page.Building.Slug));
+                    (await PaginateThroughContent(page.Id)).ForEach(pageData =>
+                    {
+                        var urlPath = $"/workplace/{page.Category.Slug}/{page.Slug}?city={page.City.Slug}&bldg={page.Building.Slug}";
+                        IndexContent(pageData, urlPath);
+                    });
+                    Console.WriteLine($"Indexed {ContentToIndex.Count} items");
                 }
                 catch (Exception ex)
                 {
-                    Console.Error.WriteLine(ex);
+                    Sinequa.Common.Sys.LogError(ex); 
                 }
             }
         }
 
-        public void IndexContent(ApiResponse pageData, string urlPath, Slugs slugs)
+        public void IndexContent(InternalPage p, string urlPath)
         {
-            var p = pageData.Data.InternalPage;
-            var title = p.PageName;
+            toContent(p, p.SectionContentCollection, urlPath, null, null);
 
-            // Process global content
-            foreach (var content in p.SectionContentCollection.Items.Where(content => content != null))
+            p.LocationBasedContentCollection.Items.Where(l => l != null && l?.LocationSpecificContentCollection != null)
+                .ToList()
+                .ForEach(LocalContent =>
+                {
+                    var LocationName = LocalContent.Location != null ? LocalContent.Location.Name : null;
+                    var LocationSlug = LocalContent.Location != null ? LocalContent.Location.Slug : null;
+                    toContent(p, LocalContent.LocationSpecificContentCollection, urlPath, LocationName, LocationSlug);
+                });
+        }
+
+        public void toContent(InternalPage p, ContentItemList List, string urlPath, string LocationName, string LocationSlug)
+        {
+            if (p?.Sys?.Id == null) return;
+
+            foreach (var content in List.Items.Where(content => content != null))
             {
+                var NewContent = new ContentToIndex
+                {
+                    UrlPath = urlPath,
+                    PageSlug = p.Slug,
+                    PageId = p.Sys.Id,
+                    PageTitle = p.PageName,
+                    LocationName = LocationName,
+                    LocationSlug = LocationSlug,
+                    PublishedAt = content.Sys.PublishedAt
+                };
+
                 switch (content)
                 {
                     case SectionContent c:
-                        ContentToIndex.Add(new ContentToIndex
-                        {
-                            UrlPath = urlPath,
-                            Slugs = slugs,
-                            PageSlug = p.Slug,
-                            PageId = p.Sys.Id,
-                            PageTitle = title,
-                            ContentId = c.Sys.Id,
-                            Data = JsonConvert.SerializeObject(new { title = c.SectionTitle, description = c.SectionDescription })
-                        });
+                        NewContent.ContentId = c.Sys.Id;
+                        NewContent.Data = JsonConvert.SerializeObject(new { title = c.SectionTitle, description = c.SectionDescription });
+                        ContentToIndex.Add(NewContent);
                         break;
-                    case SectionGroup c:
-                        if (c.ContentCollection?.Content == null) continue;
-                        foreach (var co in c.ContentCollection.Content.Where(co => co != null))
+
+                    case SectionGroup co:
+                        if (co.ContentCollection?.Content == null) continue;
+                        foreach (var c in co.ContentCollection.Content.Where(c1 => c1 != null))
                         {
-                            if (co.SectionDescription == null || co.Sys == null || p.Sys == null) continue;
-                            ContentToIndex.Add(new ContentToIndex
-                            {
-                                UrlPath = urlPath,
-                                Slugs = slugs,
-                                PageSlug = p.Slug,
-                                PageId = p.Sys.Id,
-                                PageTitle = title,
-                                ContentId = co.Sys.Id,
-                                Data = JsonConvert.SerializeObject(new { title = co.SectionTitle, description = co.SectionDescription })
-                            });
+                            if (c.SectionDescription == null || c.Sys == null) continue;
+                            NewContent.ContentId = c.Sys.Id;
+                            NewContent.Data = JsonConvert.SerializeObject(new { title = c.SectionTitle, description = c.SectionDescription });
+                            ContentToIndex.Add(NewContent);
                         }
                         break;
+
                     case QaSection c:
-                        ContentToIndex.Add(new ContentToIndex
-                        {
-                            UrlPath = urlPath,
-                            Slugs = slugs,
-                            PageSlug = p.Slug,
-                            PageId = p.Sys.Id,
-                            PageTitle = title,
-                            ContentId = c.Sys.Id,
-                            Data = JsonConvert.SerializeObject(c.QuestionsCollection)
-                        });
+                        if (c.QuestionsCollection?.Questions == null) continue;
+                        NewContent.ContentId = c.Sys.Id;
+                        NewContent.Data = JsonConvert.SerializeObject(c.QuestionsCollection.Questions
+                            .Where(q => q != null)
+                            .Select(q => new
+                            {
+                                question = q.QuestionText,
+                                answer = q.AnswersCollection.Answers.Where(a => a != null).Select(a => a.Content).ToList()
+                            }));
+                        ContentToIndex.Add(NewContent);
                         break;
-                }
-            }
-
-            // Process local content
-            foreach (var locationBased in p.LocationBasedContentCollection.LocalContent.Where(locationBased => locationBased != null))
-            {
-                var locationSlug = locationBased.Location.Slug;
-
-                foreach (var content in locationBased.LocationSpecificContentCollection.Items.Where(content => content != null))
-                {
-                    switch (content)
-                    {
-                        case SectionContent c:
-                            ContentToIndex.Add(new ContentToIndex
-                            {
-                                UrlPath = urlPath,
-                                PageSlug = p.Slug,
-                                PageId = p.Sys.Id,
-                                PageTitle = title,
-                                ContentId = c.Sys.Id,
-                                Data = JsonConvert.SerializeObject(c),
-                                LocationSlug = locationSlug
-                            });
-                            break;
-                        case SectionGroup c:
-                            if (c.ContentCollection?.Content == null) continue;
-                            foreach (var co in c.ContentCollection.Content.Where(co => co != null))
-                            {
-                                if (co.SectionDescription == null || co.Sys == null || p.Sys == null) continue;
-                                ContentToIndex.Add(new ContentToIndex
-                                {
-                                    UrlPath = urlPath,
-                                    PageSlug = p.Slug,
-                                    PageId = p.Sys.Id,
-                                    PageTitle = title,
-                                    ContentId = co.Sys.Id,
-                                    Data = co.SectionDescription,
-                                    LocationSlug = locationSlug
-                                });
-                            }
-                            break;
-                        case QaSection c:
-                            ContentToIndex.Add(new ContentToIndex
-                            {
-                                UrlPath = urlPath,
-                                PageSlug = p.Slug,
-                                PageId = p.Sys.Id,
-                                PageTitle = title,
-                                ContentId = c.Sys.Id,
-                                Data = JsonConvert.SerializeObject(c.QuestionsCollection.Questions
-                                    .Where(q => q != null)
-                                    .Select(q => new
-                                    {
-                                        question = q.QuestionText,
-                                        answer = q.AnswersCollection.Answers.Where(a => a != null).Select(a => a.Content).ToList()
-                                    })),
-                                LocationSlug = locationSlug
-                            });
-                            break;
-                    }
                 }
             }
         }

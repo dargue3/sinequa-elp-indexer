@@ -55,6 +55,7 @@ namespace GetWorkplaces
                                   if (page == null) continue;
                                   Pages.Add(new Models.WorkplacePage(
                                     page.Sys.Id, 
+                                    page.Slug,
                                     category, 
                                     region, 
                                     city, 

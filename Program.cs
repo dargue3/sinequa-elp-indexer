@@ -32,7 +32,7 @@ namespace SinequaElpIndexer
                 // Print out the response
                 var json = JsonConvert.SerializeObject(PageGetter.ContentToIndex, Formatting.Indented);
 
-                File.WriteAllText("results.json", json);
+                File.WriteAllText("/Users/danargue/code/sinequa-elp-indexer/results.json", json);
                 Console.WriteLine("Results written to results.json\n");
             }
             catch (Exception ex)

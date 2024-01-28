@@ -8,7 +8,7 @@ namespace GetPageData
     public static class Queries
     {
         public const string GetPageDataQuery = @"
-            query GetPageById($id: String!) {
+            query GetPageById($id: String!, $skip: Int) {
               internalPage(id: $id) {
                 sys {
                   id
@@ -16,7 +16,7 @@ namespace GetPageData
                 slug
                 pageName
                 pageIntroDescription
-                sectionContentCollection(limit: 20) {
+                sectionContentCollection(limit: 5, skip: $skip) {
                   total
                   items {
                     ... on SectionContent {
@@ -30,14 +30,15 @@ namespace GetPageData
                     }
                   }
                 }
-                locationBasedContentCollection(limit: 20) {
+                locationBasedContentCollection(limit: 5, skip: $skip) {
                   total
-                  localContent: items {
+                  items {
                     ... on LocationBasedContent {
                       location {
                         slug
+                        locationName
                       }
-                      locationSpecificContentCollection(limit: 20) {
+                      locationSpecificContentCollection(limit: 30) {
                         items {
                           ... on SectionContent {
                             ...SectionContent
@@ -59,9 +60,10 @@ namespace GetPageData
             fragment FAQ on QaSection {
               sys {
                 id
+                publishedAt
               }
               title
-              questionsCollection(limit: 10) {
+              questionsCollection(limit: 30) {
                 questions: items {
                   question
                   answersCollection(limit: 1) {
@@ -77,6 +79,7 @@ namespace GetPageData
             fragment SectionContent on SectionContent {
               sys {
                 id
+                publishedAt
               }
               sectionTitle
               sectionDescription
@@ -87,6 +90,7 @@ namespace GetPageData
               title
               sys {
                 id
+                publishedAt
               }
               contentCollection(limit: 20) {
                 total
@@ -105,6 +109,9 @@ namespace GetPageData
     {
         [JsonProperty("id")]
         public string Id { get; set; }
+
+        [JsonProperty("publishedAt")]
+        public string PublishedAt { get; set; }
     }
 
     public class Question
@@ -176,6 +183,14 @@ namespace GetPageData
         public QuestionsCollection QuestionsCollection { get; set; }
     }
 
+    public class Location
+    {
+        [JsonProperty("slug")]
+        public string Slug { get; set; }
+        [JsonProperty("locationName")]
+        public string Name { get; set; }
+    }
+
     public class LocationBasedContent
     {
         [JsonProperty("location")]
@@ -186,16 +201,10 @@ namespace GetPageData
         public ContentItemList LocationSpecificContentCollection { get; set; }
     }
 
-    public class Location
-    {
-        [JsonProperty("slug")]
-        public string Slug { get; set; }
-    }
-
     public class LocationBasedContentCollection
     {
-        [JsonProperty("localContent")]
-        public List<LocationBasedContent> LocalContent { get; set; }
+        [JsonProperty("items")]
+        public List<LocationBasedContent> Items { get; set; }
     }
 
     public class ContentItemList

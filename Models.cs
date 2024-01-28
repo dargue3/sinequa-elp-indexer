@@ -71,14 +71,16 @@ namespace Models {
     public class WorkplacePage
     {
         public string Id { get; set; }
+        public string Slug { get; set; }
         public Category Category { get; set; }
         public City City { get; set; }
         public Region Region { get; set; }
         public Building Building { get; set; }
 
-        public WorkplacePage(string id, Category category, Region region, City city, Building building)
+        public WorkplacePage(string id, string slug, Category category, Region region, City city, Building building)
         {
             Id = id;
+            Slug = slug;
             Category = category;
             Region = region;
             City = city;
@@ -117,11 +119,13 @@ namespace Models {
         public string UrlPath { get; set; }
         [JsonProperty("contentId")]
         public string ContentId { get; set; }
+        [JsonProperty("publishedAt")]
+        public string PublishedAt { get; set; }
         [JsonProperty("pageTitle")]
         public string PageTitle { get; set; }
         [JsonProperty("locationSlug")]
         public string LocationSlug { get; set; }
-        [JsonProperty("slugs")]
-        public Slugs Slugs { get; set; }
+        [JsonProperty("locationName")]
+        public string LocationName { get; set; }
     }
 }
